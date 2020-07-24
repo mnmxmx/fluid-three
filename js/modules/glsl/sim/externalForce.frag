@@ -8,7 +8,5 @@ varying vec2 uv;
 
 void main(){
     float d = 1.0-min(length((uv - center) / scale), 1.0);
-    /*vec2 force = velocity*distance_;*/
     gl_FragColor = vec4(force * d, 0, 1);
-    /*gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);*/
 }

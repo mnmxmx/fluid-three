@@ -1,5 +1,5 @@
 import Simulation from "./Simulation";
-import kernel_vert from "./glsl/sim/kernel.vert";
+import face_vert from "./glsl/sim/face.vert";
 // import visualize_frag from "./glsl/sim/visualize.frag";
 import * as THREE from "three";
 
@@ -19,7 +19,7 @@ class Reflect2{
         this.output = new THREE.Mesh(
             new THREE.PlaneBufferGeometry(2, 2),
             new THREE.RawShaderMaterial({
-                vertexShader: kernel_vert,
+                vertexShader: face_vert,
                 fragmentShader: `
                 precision highp float;
                 uniform sampler2D map;

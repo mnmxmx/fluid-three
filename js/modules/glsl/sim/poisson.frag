@@ -11,6 +11,7 @@ void main(){
     float y0 = texture2D(pressure, uv-vec2(0, px.y)).r;
     float y1 = texture2D(pressure, uv+vec2(0, px.y)).r;
     float d = texture2D(divergence, uv).r;
-    float relaxed = (x0 + x1 + y0 + y1 - d) / 4.0;
-    gl_FragColor = vec4(relaxed);
+
+    float _pressure = (x0 + x1 + y0 + y1 - d) / 4.0;
+    gl_FragColor = vec4(_pressure);
 }

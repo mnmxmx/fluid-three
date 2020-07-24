@@ -1,13 +1,13 @@
-import kernel_vert from "./glsl/sim/kernel.vert";
-import boundary_vert from "./glsl/sim/boundary.vert";
-import cursor_vert from "./glsl/sim/cursor.vert";
+import face_vert from "./glsl/sim/face.vert";
+import line_vert from "./glsl/sim/line.vert";
+import mouse_vert from "./glsl/sim/mouse.vert";
 
-import advect_frag from "./glsl/sim/advect.frag";
-import addForce_frag from "./glsl/sim/addForce.frag";
+import advection_frag from "./glsl/sim/advection.frag";
+import externalForce_frag from "./glsl/sim/externalForce.frag";
 import divergence_frag from "./glsl/sim/divergence.frag";
-import jacobi_frag from "./glsl/sim/jacobi.frag";
-import subtractPressureGradient_frag from "./glsl/sim/subtractPressureGradient.frag";
-import visualize_frag from "./glsl/sim/visualize.frag";
+import poisson_frag from "./glsl/sim/poisson.frag";
+import pressure_frag from "./glsl/sim/pressure.frag";
+import color_frag from "./glsl/sim/color.frag";
 
 
 
@@ -16,7 +16,7 @@ import Common from "./Common";
 import * as THREE from "three";
 
 
-export default class ComputeKernel{
+export default class ShaderPass{
     constructor(props){
         this.props = props;
 
@@ -24,16 +24,15 @@ export default class ComputeKernel{
         this.uniforms = this.props.uniforms;
 
         this.shaders = {
-            kernel: kernel_vert,
-            boundary: boundary_vert,
-            cursor: cursor_vert,
-            advect: advect_frag,
-            addForce: addForce_frag,
+            face: face_vert,
+            line: line_vert,
+            mouse: mouse_vert,
+            advection: advection_frag,
+            externalForce: externalForce_frag,
             divergence: divergence_frag,
-            jacobi: jacobi_frag,
-            subtractPressureGradient: subtractPressureGradient_frag,
-            visualize: visualize_frag,
-
+            poisson: poisson_frag,
+            pressure: pressure_frag,
+            color: color_frag,
         };
         this.init();
     }
