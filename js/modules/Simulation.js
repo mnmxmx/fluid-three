@@ -23,7 +23,7 @@ export default class Simulation{
             mouse_force: 5,
             resolution: 0.25,
             cursor_size: 20,
-            step: 1/64
+            step: 1/60
         };
 
         this.time = 0;
