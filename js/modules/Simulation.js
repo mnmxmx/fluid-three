@@ -1,4 +1,3 @@
-import {GPUComputationRenderer} from "../libs/GPUComputationRenderer";
 import Mouse from "./Mouse";
 import Common from "./Common";
 import * as THREE from "three";
@@ -9,230 +8,122 @@ export default class Simulation{
         this.props = props;
 
         this.advection = null;
-        this.advection_boundary = null;
         this.externalForce = null;
+        this.viscous = null;
         this.divergence = null;
         this.poisson = null;
-        this.poisson_boundary = null;
         this.pressure = null;
-        this.pressure_boundary = null;
         this.output = null;
 
+        this.fbos = {
+            vel_0: null,
+            vel_1: null,
+
+            // for calc next velocity with viscous
+            vel_viscous0: null,
+            vel_viscous1: null,
+
+            // for calc pressure
+            div: null,
+
+            // for calc poisson equation 
+            pressure_0: null,
+            pressure_1: null,
+
+            output: null
+        };
+
         this.options = {
-            iterations: 64,
-            mouse_force: 5,
+            iterations: 32,
+            mouse_force: 100,
             resolution: 0.25,
             cursor_size: 20,
+            viscous: 0.1,
             step: 1/60
         };
 
         this.time = 0;
+
+        this.width = null;
+        this.height = null;
+
+        this.px = new THREE.Vector2();
+        this.ratio = new THREE.Vector2();
+
+        this.init();
     }
 
+    
     init(){
-        this.width = this.options.resolution * Common.width;
-        this.height = this.options.resolution * Common.height;
-
+        this.calcSize();
         this.currentM = new THREE.Vector2();
         this.oldM = new THREE.Vector2();
         this.diffM = new THREE.Vector2();
         
         this.createGeometries();
-        this.createFBO();
+        this.createAllFBO();
         this.createShaderPass();
     }
 
     createFBO(){
+        return new THREE.WebGLRenderTarget(
+            this.width,
+            this.height,
+            {
+                ...this.commonOption_fbo
+            }
+        );
+    }
+
+    createAllFBO(){
         const type = ( /(iPad|iPhone|iPod)/g.test( navigator.userAgent ) ) ? THREE.HalfFloatType : THREE.FloatType;
-        const commonOption = {
+        this.commonOption_fbo = {
             // minFilter: THREE.NearestFilter,
             // magFilter: THREE.NearestFilter,
             type: type
+        };
+
+        for(let key in this.fbos){
+            this.fbos[key] = this.createFBO();
         }
-        
-        this.vel_fbo_0 = new THREE.WebGLRenderTarget(
-            this.width,
-            this.height,
-            {
-                format: THREE.RGBAFormat,
-                ...commonOption
-            }
-        );
-
-        this.vel_fbo_1 = new THREE.WebGLRenderTarget(
-            this.width,
-            this.height,
-            {
-                format: THREE.RGBAFormat,
-                ...commonOption
-            }
-        );
-
-        this.div_fbo = new THREE.WebGLRenderTarget(
-            this.width,
-            this.height,
-            {
-                ...commonOption
-
-                // format: THREE.LuminanceFormat
-            }
-        );
-
-        this.pressure_fbo_0 = new THREE.WebGLRenderTarget(
-            this.width,
-            this.height,
-            {
-                ...commonOption
-
-                // format: THREE.LuminanceFormat
-            }
-        );
-
-        this.pressure_fbo_1 = new THREE.WebGLRenderTarget(
-            this.width,
-            this.height,
-            {
-                ...commonOption
-
-                // format: THREE.LuminanceFormat
-            }
-        );
-
-        this.output_fbo = new THREE.WebGLRenderTarget(
-            this.width,
-            this.height,
-            {
-                ...commonOption
-            }
-        );
     }
 
     createGeometries(){
-        this.px_x = 1.0/this.width;
-        this.px_y = 1.0/this.height;
+        this.faceG = new THREE.PlaneBufferGeometry(2.0, 2.0);
 
-        this.insideG = new THREE.BufferGeometry();
-        const vertices_inside = this.screenQuad(1.0-this.px_x*2.0, 1.0-this.px_y*2.0);
-        this.insideG.setAttribute( 'position', new THREE.BufferAttribute( vertices_inside, 3 ) );
-
-        this.allG = new THREE.BufferGeometry();
-        const vertices_all = this.screenQuad(1, 1);
-        this.allG.setAttribute( 'position', new THREE.BufferAttribute( vertices_all, 3 ) );
-
-        this.boundaryG = new THREE.BufferGeometry();
-        const vertices_boundary = new Float32Array([
-            // bottom
-            -1+this.px_x*0.0, -1+this.px_y*0.0, 0.0,
-            -1+this.px_x*0.0, -1+this.px_y*2.0, 0.0,
-
-            // top
-            -1+this.px_x*0.0,  1-this.px_y*0.0, 0.0,
-            -1+this.px_x*0.0,  1-this.px_y*2.0, 0.0,
-
-            // left
-            -1+this.px_x*0.0,  1-this.px_y*0.0, 0.0,
-            -1+this.px_x*2.0,  1-this.px_y*0.0, 0.0,
-
-            // right
-             1-this.px_x*0.0,  1-this.px_y*0.0, 0.0,
-             1-this.px_x*2.0,  1-this.px_y*0.0, 0.0,
-        ]);
-
-        const offset_boundary = new Float32Array([
-            // bottom
-             1-this.px_x*0.0, -1+this.px_y*0.0, 0.0,
-             1-this.px_x*0.0, -1+this.px_y*2.0, 0.0,
-
-            // top
-             1-this.px_x*0.0,  1-this.px_y*0.0, 0.0,
-             1-this.px_x*0.0,  1-this.px_y*2.0, 0.0,
-
-            // left
-            -1+this.px_x*0.0, -1+this.px_y*0.0, 0.0,
-            -1+this.px_x*2.0, -1+this.px_y*0.0, 0.0,
-
-            // right
-             1-this.px_x*0.0, -1+this.px_y*0.0, 0.0,
-             1-this.px_x*2.0, -1+this.px_y*0.0, 0.0
-        ]);
-        this.boundaryG.setAttribute( 'position', new THREE.BufferAttribute( vertices_boundary, 3 ) );
-        this.boundaryG.setAttribute( 'offset', new THREE.BufferAttribute( offset_boundary, 3 ) );
-
-
-        this.mouseG = new THREE.BufferGeometry();
-        const vertices_cursor = this.screenQuad(this.px_x * this.options.cursor_size * 2, this.px_y * this.options.cursor_size * 2);
-        this.mouseG.setAttribute( 'position', new THREE.BufferAttribute( vertices_cursor, 3 ) );
+        this.mouseG = new THREE.PlaneBufferGeometry(
+            this.options.cursor_size * 2, this.options.cursor_size * 2
+        );
     }
 
-    screenQuad(xscale, yscale) {
-        xscale = xscale||1;
-        yscale = yscale||xscale;
-        return new Float32Array([
-                -xscale, yscale, 0,
-                -xscale, -yscale, 0,
-                xscale, -yscale, 0,
-                
-                -xscale, yscale, 0,
-                xscale, -yscale, 0,
-                xscale, yscale, 0
-        ]);
-    };
-
     createShaderPass(){
-        this.px = new THREE.Vector2(this.px_x, this.px_y);
-        this.px1 = new THREE.Vector2(1, this.width/this.height);
-
         this.advection = new ShaderPass({
             vertex: "face",
             fragment: "advection",
-            geometry: this.insideG,
+            geometry: this.faceG,
             uniforms: {
+                boundarySpace: {
+                    value: this.px
+                },
                 px: {
                     value: this.px
                 },
-                px1: {
-                    value: this.px1
+                ratio: {
+                    value: this.ratio
                 },
                 scale: {
                     value: 1.0
                 },
                 velocity: {
-                    value: this.vel_fbo_0.texture
-                },
-                source: {
-                    value: this.vel_fbo_0.texture
+                    value: this.fbos.vel_0.texture
                 },
                 dt: {
                     value: this.options.step
                 }
             },
-            output: this.vel_fbo_1
+            output: this.fbos.vel_1
         });
 
-        this.advection_boundary = new ShaderPass({
-            vertex: "line",
-            fragment: "advection",
-            geometry: this.boundaryG,
-            isLine: true,
-            uniforms: {
-                px: {
-                    value: this.px
-                },
-                scale: {
-                    value: -1.0
-                },
-                velocity: {
-                    value: this.vel_fbo_0.texture
-                },
-                source: {
-                    value: this.vel_fbo_0.texture
-                },
-                dt: {
-                    value: this.options.step
-                }
-            },
-            output: this.vel_fbo_1
-        });
 
         this.externalForce = new ShaderPass({
             vertex: "mouse",
@@ -250,121 +141,113 @@ export default class Simulation{
                     value: new THREE.Vector2(0.0, 0.0)
                 },
                 scale: {
-                    value: new THREE.Vector2(this.options.cursor_size * this.px_x, this.options.cursor_size * this.px_y)
+                    value: new THREE.Vector2(this.options.cursor_size, this.options.cursor_size)
                 }
             },
-            output: this.vel_fbo_1
+            output: this.fbos.vel_1
         });
-        
 
-        this.divergence = new ShaderPass({
+        this.viscous = new ShaderPass({
             vertex: "face",
-            fragment: "divergence",
-            geometry: this.allG,
+            fragment: "viscous",
+            geometry: this.faceG,
             uniforms: {
+                boundarySpace: {
+                    value: this.px
+                },
                 velocity: {
-                    value: this.vel_fbo_1.texture
+                    value: this.fbos.vel_1.texture
+                },
+                velocity_new: {
+                    value: this.fbos.vel_viscous0.texture
+                },
+                v: {
+                    value: this.options.viscous,
                 },
                 px: {
                     value: this.px
                 }
             },
-            output: this.div_fbo
+            output: this.fbos.vel_viscous1
+        });
+
+        this.divergence = new ShaderPass({
+            vertex: "face",
+            fragment: "divergence",
+            geometry: this.faceG,
+            uniforms: {
+                boundarySpace: {
+                    value: this.px
+                },
+                velocity: {
+                    value: this.fbos.vel_viscous0.texture
+                },
+                px: {
+                    value: this.px
+                }
+            },
+            output: this.fbos.div
         });
 
         this.poisson = new ShaderPass({
             vertex: "face",
             fragment: "poisson",
-            geometry: this.allG,
+            geometry: this.faceG,
             nounbind: true,
             uniforms: {
+                boundarySpace: {
+                    value: this.px
+                },
                 pressure: {
-                    value: this.pressure_fbo_0.texture
+                    value: this.fbos.pressure_0.texture
                 },
                 divergence: {
-                    value: this.div_fbo.texture
+                    value: this.fbos.div.texture
                 },
                 px: {
                     value: this.px
                 }
             },
-            output: this.pressure_fbo_1
+            output: this.fbos.pressure_1
         });
 
-        this.poisson_boundary = new ShaderPass({
-            vertex: "line",
-            fragment: "poisson",
-            geometry: this.boundaryG,
-            isLine: true,
-            nounbind: true,
-            nobind: true,
-            uniforms: {
-                pressure: {
-                    value: this.pressure_fbo_0.texture
-                },
-                divergence: {
-                    value: this.div_fbo.texture
-                },
-                px: {
-                    value: this.px
-                }
-            },
-            output: this.pressure_fbo_1
-
-        });
         this.pressure = new ShaderPass({
             vertex: "face",
             fragment: "pressure",
-            geometry: this.allG,
+            geometry: this.faceG,
             uniforms: {
+                boundarySpace: {
+                    value: this.px
+                },
                 pressure: {
-                    value: this.pressure_fbo_0.texture
+                    value: this.fbos.pressure_0.texture
                 },
                 velocity: {
-                    value: this.vel_fbo_1.texture
+                    value: this.fbos.vel_viscous0.texture
                 },
                 px: {
                     value: this.px
                 }
             },
-            output: this.vel_fbo_0
-        });
-
-        this.pressure_boundary = new ShaderPass({
-            vertex: "line",
-            fragment: "pressure",
-            geometry: this.boundaryG,
-            isLine: true,
-            uniforms: {
-                scale: {
-                    value: 1.0
-                },
-                pressure: {
-                    value: this.pressure_fbo_0.texture
-                },
-                velocity: {
-                    value: this.vel_fbo_1.texture
-                },
-                px: {
-                    value: this.px
-                }
-            },
-            output: this.vel_fbo_0
+            output: this.fbos.vel_0
         });
 
         this.output = new ShaderPass({
             vertex: "face",
             fragment: "color",
-            geometry: this.allG,
+            geometry: this.faceG,
             uniforms: {
+                boundarySpace: {
+                    value: new THREE.Vector2()
+                },
                 velocity: {
-                    value: this.vel_fbo_0.texture,
+                    value: this.fbos.vel_1.texture,
                 },
                 pressure: {
-                    value: this.pressure_fbo_0.texture
+                    value: this.fbos.pressure_0.texture
                 },
                 div: {
-                    value: this.div_fbo.texture
+                    value: this.fbos.div.texture
                 },
                 px: {
                     value: this.px
@@ -373,76 +256,97 @@ export default class Simulation{
                     value: 0.1
                 }
             },
-            output: this.output_fbo
+            output: this.fbos.output
         });
     }
 
-    resize(){
-        this.width = this.options.resolution * Common.width;
-        this.height = this.options.resolution * Common.height;
+    calcSize(){
+        this.width = Math.floor(this.options.resolution * Common.width / 2) * 2;
+        this.height = Math.floor(this.options.resolution * Common.height / 2) * 2;
 
-        this.px_x = 1.0/this.width;
-        this.px_y = 1.0/this.height;
+        const px_x = 1.0 / this.width;
+        const px_y = 1.0 / this.height;
 
-        this.px.set(this.px_x, this.px_y);
-        this.px1.set(1, this.width/this.height);
+        this.px.set(px_x, px_y);
+        this.ratio.set(1, this.width/this.height);
     }
 
-    update(){
-        this.currentM.set( 
-            Mouse.mouseOriginal.x * this.options.resolution,
-            Mouse.mouseOriginal.y * this.options.resolution
-        );
+    resize(){
+        this.calcSize();
 
+        for(let key in this.fbos){
+            this.fbos[key].setSize(this.width, this.height);
+        }
+    }
+
+    updateMouse(){
+        this.currentM.copy(Mouse.coords);
         this.diffM.subVectors(this.currentM, this.oldM);
-
         this.oldM.copy(this.currentM);
 
         if(this.oldM.x === 0 && this.oldM.y === 0) this.diffM.set(0, 0);
+    }
 
+    update(){
+        this.updateMouse();
         this.advection.update();
 
         this.externalForce.uniforms.force.value.set(
-            this.diffM.x * this.px_x * this.options.cursor_size * this.options.mouse_force,
-            -this.diffM.y * this.px_y * this.options.cursor_size * this.options.mouse_force
+            this.diffM.x / 2 * this.options.mouse_force,
+            this.diffM.y / 2 * this.options.mouse_force
         );
 
+        const cursorSizeX = this.options.cursor_size * this.px.x;
+        const cursorSizeY = this.options.cursor_size * this.px.y;
+
         this.externalForce.uniforms.center.value.set(
-            this.currentM.x * this.px_x * 2-1.0,
-            (this.currentM.y * this.px_y * 2-1.0)*-1
+            Math.min(Math.max(this.currentM.x, -1 + cursorSizeX + this.px.x * 2), 1 - cursorSizeX - this.px.x * 2),
+            Math.min(Math.max(this.currentM.y, -1 + cursorSizeY + this.px.y * 2), 1 - cursorSizeY - this.px.y * 2),
         );
 
         this.externalForce.update();
 
+        let v_in, v_out;
+        this.viscous.uniforms.v.value = this.options.viscous;
+        for(var i = 0; i < this.options.iterations; i++){
+            if(i % 2 == 0){
+                v_in = this.fbos.vel_viscous0;
+                v_out = this.fbos.vel_viscous1;
+            } else {
+                v_in = this.fbos.vel_viscous1;
+                v_out = this.fbos.vel_viscous0;
+            }
 
-        // this.advection_boundary.update();
+            this.viscous.uniforms.velocity_new.value = v_in.texture;
+            this.viscous.props.output = v_out;
 
+            this.viscous.update();
+        }
+
+        this.divergence.uniforms.velocity.value = v_out.texture;
         this.divergence.update();
 
         let p_in, p_out;
 
         for(var i = 0; i < this.options.iterations; i++) {
             if(i % 2 == 0){
-                p_in = this.pressure_fbo_0;
-                p_out = this.pressure_fbo_1;
+                p_in = this.fbos.pressure_0;
+                p_out = this.fbos.pressure_1;
             } else {
-                p_in = this.pressure_fbo_1;
-                p_out = this.pressure_fbo_0;
+                p_in = this.fbos.pressure_1;
+                p_out = this.fbos.pressure_0;
             }
 
             this.poisson.uniforms.pressure.value = p_in.texture;
-            this.poisson_boundary.uniforms.pressure.value = p_in.texture;
             this.poisson.props.output = p_out;
-            this.poisson_boundary.props.output = p_out;
 
             this.poisson.update();
-            // this.poisson_boundary.update();
         }
 
-        this.pressure.uniforms.pressure.value = p_out;
-        this.pressure.update();
-        // this.pressure_boundary.update();
+        this.pressure.uniforms.pressure.value = p_out.texture;
+        this.pressure.uniforms.velocity.value = v_out.texture;
 
+        this.pressure.update();
         this.output.update();
     }
 }

@@ -19,12 +19,7 @@ class Common{
     }
 
     init(){
-        EventBus.on("RESIZE", this.resizeFunc);
-        
         this.pixelRatio = window.devicePixelRatio;
-
-        this.fboRatio = Math.min(2, this.pixelRatio); //fboのスケール
-        
 
         this.resize();
 
@@ -37,7 +32,7 @@ class Common{
 
         this.renderer.setSize( this.width, this.height );
 
-        this.renderer.setClearColor( 0xffffff );
+        this.renderer.setClearColor( 0x000000 );
 
         this.renderer.setPixelRatio(this.pixelRatio);
 
@@ -49,11 +44,6 @@ class Common{
         this.width = window.innerWidth; // document.body.clientWidth;
         this.height = window.innerHeight;
         this.aspect = this.width / this.height;
-
-        this.fboWidth = this.width * this.fboRatio;
-        this.fboHeight = this.height * this.fboRatio;
-
-        this.isMobile = (this.width <= this.breakpoint);
 
         if(this.renderer) this.renderer.setSize(this.width, this.height);
     }

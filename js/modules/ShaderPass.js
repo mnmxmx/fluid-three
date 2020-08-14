@@ -1,9 +1,9 @@
 import face_vert from "./glsl/sim/face.vert";
-import line_vert from "./glsl/sim/line.vert";
 import mouse_vert from "./glsl/sim/mouse.vert";
 
 import advection_frag from "./glsl/sim/advection.frag";
 import externalForce_frag from "./glsl/sim/externalForce.frag";
+import viscous_frag from "./glsl/sim/viscous.frag";
 import divergence_frag from "./glsl/sim/divergence.frag";
 import poisson_frag from "./glsl/sim/poisson.frag";
 import pressure_frag from "./glsl/sim/pressure.frag";
@@ -25,10 +25,10 @@ export default class ShaderPass{
 
         this.shaders = {
             face: face_vert,
-            line: line_vert,
             mouse: mouse_vert,
             advection: advection_frag,
             externalForce: externalForce_frag,
+            viscous: viscous_frag,
             divergence: divergence_frag,
             poisson: poisson_frag,
             pressure: pressure_frag,

@@ -5,13 +5,15 @@ uniform vec2 px;
 varying vec2 uv;
 
 void main(){
+    float step = 1.0;
+    
     // poisson equation
-    float x0 = texture2D(pressure, uv-vec2(px.x, 0)).r;
-    float x1 = texture2D(pressure, uv+vec2(px.x, 0)).r;
-    float y0 = texture2D(pressure, uv-vec2(0, px.y)).r;
-    float y1 = texture2D(pressure, uv+vec2(0, px.y)).r;
-    float d = texture2D(divergence, uv).r;
-
-    float _pressure = (x0 + x1 + y0 + y1 - d) / 4.0;
-    gl_FragColor = vec4(_pressure);
+    float p0 = texture2D(pressure, uv+vec2(px.x * 2.0 * step,  0)).r;
+    float p1 = texture2D(pressure, uv-vec2(px.x * 2.0 * step, 0)).r;
+    float p2 = texture2D(pressure, uv+vec2(0, px.y * 2.0 * step )).r;
+    float p3 = texture2D(pressure, uv-vec2(0, px.y * 2.0 * step )).r;
+    float div = texture2D(divergence, uv).r;
+    
+    float newP = (p0 + p1 + p2 + p3) / 4.0 - div;
+    gl_FragColor = vec4(newP);
 }
