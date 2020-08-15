@@ -2,6 +2,7 @@ import Mouse from "./Mouse";
 import Common from "./Common";
 import * as THREE from "three";
 import ShaderPass from "./ShaderPass";
+import Controls from "./Controls";
 
 export default class Simulation{
     constructor(props){
@@ -34,13 +35,17 @@ export default class Simulation{
         };
 
         this.options = {
-            iterations: 32,
+            iterations_poisson: 32,
+            iterations_viscous: 32,
             mouse_force: 100,
             resolution: 0.25,
             cursor_size: 20,
             viscous: 0.1,
-            step: 1/60
+            dt: 1/60,
+            isViscous: true
         };
+
+        this.controls = new Controls(this.options);
 
         this.time = 0;
 
@@ -65,16 +70,6 @@ export default class Simulation{
         this.createShaderPass();
     }
 
-    createFBO(){
-        return new THREE.WebGLRenderTarget(
-            this.width,
-            this.height,
-            {
-                ...this.commonOption_fbo
-            }
-        );
-    }
-
     createAllFBO(){
         const type = ( /(iPad|iPhone|iPod)/g.test( navigator.userAgent ) ) ? THREE.HalfFloatType : THREE.FloatType;
         this.commonOption_fbo = {
@@ -84,7 +79,11 @@ export default class Simulation{
         };
 
         for(let key in this.fbos){
-            this.fbos[key] = this.createFBO();
+            this.fbos[key] = new THREE.WebGLRenderTarget(
+                this.width,
+                this.height,
+                this.commonOption_fbo
+            )
         }
     }
 
@@ -92,7 +91,7 @@ export default class Simulation{
         this.faceG = new THREE.PlaneBufferGeometry(2.0, 2.0);
 
         this.mouseG = new THREE.PlaneBufferGeometry(
-            this.options.cursor_size * 2, this.options.cursor_size * 2
+            1, 1
         );
     }
 
@@ -118,7 +117,7 @@ export default class Simulation{
                     value: this.fbos.vel_0.texture
                 },
                 dt: {
-                    value: this.options.step
+                    value: this.options.dt
                 }
             },
             output: this.fbos.vel_1
@@ -252,9 +251,6 @@ export default class Simulation{
                 px: {
                     value: this.px
                 },
-                hueRange: {
-                    value: 0.1
-                }
             },
             output: this.fbos.output
         });
@@ -285,11 +281,6 @@ export default class Simulation{
         this.oldM.copy(this.currentM);
 
         if(this.oldM.x === 0 && this.oldM.y === 0) this.diffM.set(0, 0);
-    }
-
-    update(){
-        this.updateMouse();
-        this.advection.update();
 
         this.externalForce.uniforms.force.value.set(
             this.diffM.x / 2 * this.options.mouse_force,
@@ -303,32 +294,52 @@ export default class Simulation{
             Math.min(Math.max(this.currentM.x, -1 + cursorSizeX + this.px.x * 2), 1 - cursorSizeX - this.px.x * 2),
             Math.min(Math.max(this.currentM.y, -1 + cursorSizeY + this.px.y * 2), 1 - cursorSizeY - this.px.y * 2),
         );
+        this.externalForce.uniforms.scale.value.set(
+            this.options.cursor_size, this.options.cursor_size
+        );
 
         this.externalForce.update();
+    }
 
-        let v_in, v_out;
-        this.viscous.uniforms.v.value = this.options.viscous;
-        for(var i = 0; i < this.options.iterations; i++){
-            if(i % 2 == 0){
-                v_in = this.fbos.vel_viscous0;
-                v_out = this.fbos.vel_viscous1;
-            } else {
-                v_in = this.fbos.vel_viscous1;
-                v_out = this.fbos.vel_viscous0;
+    update(){
+        this.advection.uniforms.dt.value = this.options.dt;
+        this.advection.update();
+
+        this.updateMouse();
+
+        if(this.options.isViscous){
+            let v_in, v_out;
+            this.viscous.uniforms.v.value = this.options.viscous;
+            for(var i = 0; i < this.options.iterations_viscous; i++){
+                if(i % 2 == 0){
+                    v_in = this.fbos.vel_viscous0;
+                    v_out = this.fbos.vel_viscous1;
+                } else {
+                    v_in = this.fbos.vel_viscous1;
+                    v_out = this.fbos.vel_viscous0;
+                }
+
+                this.viscous.uniforms.velocity_new.value = v_in.texture;
+                this.viscous.props.output = v_out;
+
+                this.viscous.update();
             }
 
-            this.viscous.uniforms.velocity_new.value = v_in.texture;
-            this.viscous.props.output = v_out;
+            this.divergence.uniforms.velocity.value = v_out.texture;
+            this.pressure.uniforms.velocity.value = v_out.texture;
 
-            this.viscous.update();
+        } else {
+            this.divergence.uniforms.velocity.value = this.fbos.vel_1.texture;
+            this.pressure.uniforms.velocity.value = this.fbos.vel_1.texture;
+
         }
 
-        this.divergence.uniforms.velocity.value = v_out.texture;
+
         this.divergence.update();
 
         let p_in, p_out;
 
-        for(var i = 0; i < this.options.iterations; i++) {
+        for(var i = 0; i < this.options.iterations_poisson; i++) {
             if(i % 2 == 0){
                 p_in = this.fbos.pressure_0;
                 p_out = this.fbos.pressure_1;
@@ -344,7 +355,7 @@ export default class Simulation{
         }
 
         this.pressure.uniforms.pressure.value = p_out.texture;
-        this.pressure.uniforms.velocity.value = v_out.texture;
+        
 
         this.pressure.update();
         this.output.update();
