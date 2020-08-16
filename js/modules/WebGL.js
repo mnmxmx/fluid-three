@@ -1,6 +1,6 @@
 // import * as THREE from "three";
 import Common from "./Common";
-import SceneMng from "./SceneMng";
+import Output from "./Output";
 import Mouse from "./Mouse";
 
 export default class Webgl{
@@ -18,26 +18,18 @@ export default class Webgl{
 
     init(){
         this.props.$wrapper.prepend(Common.renderer.domElement);
-
-        const domStyle = Common.renderer.domElement.style;
-        domStyle.position = "fixed";
-        domStyle.top = "0";
-        domStyle.left = "0";
-        domStyle.width = "100%";
-
-        this.sceneMng = new SceneMng();
-
-        // debug
+        this.output = new Output();
     }
 
     resize(){
         Common.resize();
-        this.sceneMng.resize();
+        this.output.resize();
     }
 
     render(){
+        Mouse.update();
         Common.update();
-        this.sceneMng.update();
+        this.output.update();
     }
 
     loop(){

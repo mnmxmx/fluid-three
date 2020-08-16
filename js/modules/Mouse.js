@@ -42,6 +42,13 @@ class Mouse{
             this.setCoords( event.touches[ 0 ].pageX, event.touches[ 0 ].pageY );
         }
     }
+
+    update(){
+        this.diff.subVectors(this.coords, this.coords_old);
+        this.coords_old.copy(this.coords);
+
+        if(this.coords_old.x === 0 && this.coords_old.y === 0) this.diff.set(0, 0);
+    }
 }
 
 export default new Mouse();

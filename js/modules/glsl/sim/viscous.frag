@@ -7,13 +7,12 @@ uniform vec2 px;
 varying vec2 uv;
 
 void main(){
-    float step = 1.0;
     // poisson equation
     vec2 old = texture2D(velocity, uv).xy;
-    vec2 new0 = texture2D(velocity_new, uv + vec2(px.x * 2.0 * step, 0)).xy;
-    vec2 new1 = texture2D(velocity_new, uv - vec2(px.x * 2.0 * step, 0)).xy;
-    vec2 new2 = texture2D(velocity_new, uv + vec2(0, px.y * 2.0 * step)).xy;
-    vec2 new3 = texture2D(velocity_new, uv - vec2(0, px.y * 2.0 * step)).xy;
+    vec2 new0 = texture2D(velocity_new, uv + vec2(px.x * 2.0, 0)).xy;
+    vec2 new1 = texture2D(velocity_new, uv - vec2(px.x * 2.0, 0)).xy;
+    vec2 new2 = texture2D(velocity_new, uv + vec2(0, px.y * 2.0)).xy;
+    vec2 new3 = texture2D(velocity_new, uv - vec2(0, px.y * 2.0)).xy;
 
     vec2 new = 4.0 * old + v * (new0 + new1 + new2 + new3);
     new /= 4.0 * (1.0 + v);
