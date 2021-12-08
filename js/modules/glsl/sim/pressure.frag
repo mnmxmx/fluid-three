@@ -2,6 +2,7 @@ precision highp float;
 uniform sampler2D pressure;
 uniform sampler2D velocity;
 uniform vec2 px;
+uniform float dt;
 varying vec2 uv;
 
 void main(){
@@ -14,6 +15,6 @@ void main(){
 
     vec2 v = texture2D(velocity, uv).xy;
     vec2 gradP = vec2(p0 - p1, p2 - p3) * 0.5;
-    v = v - gradP;
+    v = v - gradP * dt;
     gl_FragColor = vec4(v, 0.0, 1.0);
 }

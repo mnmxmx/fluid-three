@@ -18,6 +18,9 @@ export default class Divergence extends ShaderPass{
                     },
                     px: {
                         value: simProps.cellScale
+                    },
+                    dt: {
+                        value: simProps.dt
                     }
                 }
             },

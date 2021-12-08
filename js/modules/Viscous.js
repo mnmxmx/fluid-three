@@ -25,6 +25,9 @@ export default class Viscous extends ShaderPass{
                     },
                     px: {
                         value: simProps.cellScale
+                    },
+                    dt: {
+                        value: simProps.dt
                     }
                 }
             },
@@ -38,24 +41,25 @@ export default class Viscous extends ShaderPass{
         this.init();
     }
 
-    update({ viscous, iterations }){
-        let v_in, v_out;
+    update({ viscous, iterations, dt }){
+        let fbo_in, fbo_out;
         this.uniforms.v.value = viscous;
         for(var i = 0; i < iterations; i++){
             if(i % 2 == 0){
-                v_in = this.props.output0;
-                v_out = this.props.output1;
+                fbo_in = this.props.output0;
+                fbo_out = this.props.output1;
             } else {
-                v_in = this.props.output1;
-                v_out = this.props.output0;
+                fbo_in = this.props.output1;
+                fbo_out = this.props.output0;
             }
 
-            this.uniforms.velocity_new.value = v_in.texture;
-            this.props.output = v_out;
+            this.uniforms.velocity_new.value = fbo_in.texture;
+            this.props.output = fbo_out;
+            this.uniforms.dt.value = dt;
 
             super.update();
         }
 
-        return v_out;
+        return fbo_out;
     }
 }

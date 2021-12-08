@@ -36,7 +36,7 @@ export default class Simulation{
             mouse_force: 100,
             resolution: 0.25,
             cursor_size: 20,
-            viscous: 3,
+            viscous: 30,
             isBounce: false,
             dt: 1/60,
             isViscous: false
@@ -94,13 +94,15 @@ export default class Simulation{
             src: this.fbos.vel_1,
             dst: this.fbos.vel_viscous1,
             dst_: this.fbos.vel_viscous0,
+            dt: this.options.dt,
         });
 
         this.divergence = new Divergence({
             cellScale: this.cellScale,
             boundarySpace: this.boundarySpace,
             src: this.fbos.vel_viscous0,
-            dst: this.fbos.div
+            dst: this.fbos.div,
+            dt: this.options.dt,
         });
 
         this.poisson = new Poisson({
@@ -116,7 +118,8 @@ export default class Simulation{
             boundarySpace: this.boundarySpace,
             src_p: this.fbos.pressure_0,
             src_v: this.fbos.vel_viscous0,
-            dst: this.fbos.vel_0
+            dst: this.fbos.vel_0,
+            dt: this.options.dt,
         });
     }
 
@@ -161,7 +164,8 @@ export default class Simulation{
         if(this.options.isViscous){
             vel = this.viscous.update({
                 viscous: this.options.viscous,
-                iterations: this.options.iterations_viscous
+                iterations: this.options.iterations_viscous,
+                dt: this.options.dt
             });
         }
 
