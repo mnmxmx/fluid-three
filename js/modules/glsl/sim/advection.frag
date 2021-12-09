@@ -1,38 +1,39 @@
 precision highp float;
-uniform sampler2D source;
 uniform sampler2D velocity;
 uniform float dt;
+uniform bool isBFECC;
 // uniform float uvScale;
 uniform vec2 fboSize;
 uniform vec2 px;
 varying vec2 uv;
 
 void main(){
-    vec2 vel = texture2D(velocity, uv).xy;
     vec2 ratio = max(fboSize.x, fboSize.y) / fboSize;
-    vec2 uv2 = uv - vel * dt * ratio;
 
-    vec2 edge = step(fract(uv), vec2(0.0));  // get 1 if fract uv is 0 or 1, else 0
-    // bounce if edge is 1;
-    vec2 scale = -edge * 2.0 + 1.0;
+    if(isBFECC == false){
+        vec2 vel = texture2D(velocity, uv).xy;
+        vec2 uv2 = uv - vel * dt * ratio;
+        vec2 newVel = texture2D(velocity, uv2).xy;
+        gl_FragColor = vec4(newVel, 0.0, 0.0);
+    } else {
+        vec2 spot_new = uv;
+        vec2 vel_old = texture2D(velocity, uv).xy;
+        // back trace
+        vec2 spot_old = spot_new - vel_old * dt * ratio;
+        vec2 vel_new1 = texture2D(velocity, spot_old).xy;
 
-    vec2 newVel = texture2D(velocity, uv2).xy * scale;
-    
-    gl_FragColor = vec4(newVel, 0.0, 0.0);
+        // forward trace
+        vec2 spot_new2 = spot_old + vel_new1 * dt * ratio;
+        
+        vec2 error = spot_new2 - spot_new;
 
-    // float step = 1.0;
-    // vec2 vel0 = texture2D(velocity, uv).xy;
-    // vec2 vel1 = texture2D(velocity, uv + vec2(px.x, 0.0)).xy;
-    // vec2 vel2 = texture2D(velocity, uv - vec2(px.x, 0.0)).xy;
-    // vec2 vel3 = texture2D(velocity, uv + vec2(0.0, px.y)).xy;
-    // vec2 vel4 = texture2D(velocity, uv - vec2(0.0, px.y)).xy;
+        vec2 spot_new3 = spot_new - error / 2.0;
+        vec2 vel_2 = texture2D(velocity, spot_new3).xy;
 
-    // vec2 diff = vec2(
-    //     vel0.x * (vel1.x - vel2.x) / (2.0 * step) + vel0.y * (vel3.x - vel4.x) / (2.0 * step),
-    //     vel0.x * (vel1.y - vel2.y) / (2.0 * step) + vel0.y * (vel3.y - vel4.y) / (2.0 * step)
-    // );
-
-    // vec2 vel = vel0 - diff * dt;
-
-    // gl_FragColor = vec4(vel, 0.0, 0.0 );
+        // back trace 2
+        vec2 spot_old2 = spot_new3 - vel_2 * dt * ratio;
+        // gl_FragColor = vec4(spot_old2, 0.0, 0.0);
+        vec2 newVel2 = texture2D(velocity, spot_old2).xy; 
+        gl_FragColor = vec4(newVel2, 0.0, 0.0);
+    }
 }

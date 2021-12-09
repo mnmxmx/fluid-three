@@ -33,13 +33,14 @@ export default class Simulation{
         this.options = {
             iterations_poisson: 32,
             iterations_viscous: 32,
-            mouse_force: 100,
-            resolution: 0.25,
-            cursor_size: 20,
+            mouse_force: 50,
+            resolution: 0.5,
+            cursor_size: 50,
             viscous: 30,
             isBounce: false,
             dt: 1/60,
-            isViscous: false
+            isViscous: false,
+            BFECC: true
         };
 
         const controls = new Controls(this.options);

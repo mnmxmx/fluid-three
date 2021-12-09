@@ -28,6 +28,9 @@ export default class Advection extends ShaderPass{
                     },
                     dt: {
                         value: simProps.dt
+                    },
+                    isBFECC: {
+                        value: true
                     }
                 },
             },
@@ -73,10 +76,11 @@ export default class Advection extends ShaderPass{
         this.scene.add(this.line);
     }
 
-    update({ dt, isBounce }){
+    update({ dt, isBounce, BFECC }){
 
         this.uniforms.dt.value = dt;
         this.line.visible = isBounce;
+        this.uniforms.isBFECC.value = BFECC;
 
         super.update();
     }
