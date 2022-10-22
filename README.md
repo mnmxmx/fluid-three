@@ -14,6 +14,4 @@ This source code and the demo are for a explanation in my blog post.
 https://mnmxmx.github.io/fluid-three/dist/
 
 ## License
-This source code is not MIT License.  
-- You can't use this for your productions / your projects.  
-- You can see this source code and learn from it. 
+MIT Licence
