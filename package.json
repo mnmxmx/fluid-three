@@ -1,3 +1,4 @@
+// export NODE_OPTIONS=--openssl-legacy-provider
 {
   "name": "fluid-three",
   "version": "1.0.0",
